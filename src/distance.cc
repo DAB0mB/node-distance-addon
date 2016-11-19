@@ -26,6 +26,7 @@ double CalculateDistance(Point* pointA, Point* pointB) {
 
 class DistanceWorker : public AsyncWorker {
  private:
+  double distance;
   Point* pointA;
   Point* pointB;
 
@@ -39,7 +40,7 @@ class DistanceWorker : public AsyncWorker {
   }
 
   void Execute () {
-
+    distance = CalculateDistance(pointA, pointB);
   }
 
   void HandleOKCallback () {
