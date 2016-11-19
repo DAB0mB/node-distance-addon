@@ -35,8 +35,22 @@ NAN_METHOD(CalculateSync) {
   info.GetReturnValue().Set(CalculateDistance(pointA, pointB));
 }
 
+NAN_METHOD(CalculateAsync) {
+  Local<Object> js_pointA = To<Object>(info[0]).ToLocalChecked();
+  Local<Object> js_pointB = To<Object>(info[1]).ToLocalChecked();
+
+  Point* pointA = new Point();
+  pointA->x = To<double>(js_pointA->Get(New<String>("x").ToLocalChecked())).FromJust();
+  pointA->y = To<double>(js_pointA->Get(New<String>("y").ToLocalChecked())).FromJust();
+
+  Point* pointB = new Point();
+  pointB->x = To<double>(js_pointB->Get(New<String>("x").ToLocalChecked())).FromJust();
+  pointB->y = To<double>(js_pointB->Get(New<String>("y").ToLocalChecked())).FromJust();
+}
+
 NAN_MODULE_INIT(Init) {
   NAN_EXPORT(target, CalculateSync);
+  NAN_EXPORT(target, CalculateAsync);
 }
 
 NODE_MODULE(distance, Init)
