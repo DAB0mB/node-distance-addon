@@ -6,14 +6,18 @@
 using Nan::AsyncQueueWorker;
 using Nan::AsyncWorker;
 using Nan::Callback;
+using Nan::HandleScope;
 using Nan::New;
+using Nan::Null;
 using Nan::To;
 using std::pow;
 using std::sqrt;
 using v8::Function;
 using v8::Local;
+using v8::Number;
 using v8::Object;
 using v8::String;
+using v8::Value;
 
 struct Point {
   double x;
@@ -44,7 +48,14 @@ class DistanceWorker : public AsyncWorker {
   }
 
   void HandleOKCallback () {
+    HandleScope scope;
 
+    Local<Value> argv[] = {
+      Null(),
+      New<Number>(distance)
+    };
+
+    callback->Call(2, argv);
   }
 };
 
