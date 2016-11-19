@@ -9,6 +9,8 @@
   },
   "gypfile": true,
   "scripts": {
-    "test": "node test"
+    "pre-publish": "npm run build",
+    "build": "node-gyp rebuild",
+    "test": "npm run build && node test"
   }
 }
