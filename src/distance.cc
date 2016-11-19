@@ -23,6 +23,8 @@ NAN_METHOD(CalculateSync) {
   Point* pointB = new Point();
   pointB->x = To<double>(js_pointB->Get(New<String>("x").ToLocalChecked())).FromJust();
   pointB->y = To<double>(js_pointB->Get(New<String>("y").ToLocalChecked())).FromJust();
+
+  info.GetReturnValue().Set(CalculateDistance(pointA, pointB));
 }
 
 NAN_MODULE_INIT(Init) {
