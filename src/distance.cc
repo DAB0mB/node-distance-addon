@@ -1,8 +1,13 @@
 #include <nan.h>
 #include <v8.h>
 
-NAN_METHOD(CalculateSync) {
+using Nan::To;
+using v8::Local;
+using v8::Object;
 
+NAN_METHOD(CalculateSync) {
+  Local<Object> js_pointA = To<Object>(info[0]).ToLocalChecked();
+  Local<Object> js_pointB = To<Object>(info[1]).ToLocalChecked();
 }
 
 NAN_MODULE_INIT(Init) {
