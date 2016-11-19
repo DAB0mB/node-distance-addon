@@ -24,6 +24,29 @@ double CalculateDistance(Point* pointA, Point* pointB) {
   return sqrt(pow(pointA->x - pointB->x, 2) + pow(pointA->y - pointB->y, 2));
 }
 
+class DistanceWorker : public AsyncWorker {
+ private:
+  Point* pointA;
+  Point* pointB;
+
+ public:
+  DistanceWorker(Callback* callback, Point* pointA, Point* pointB) :
+    AsyncWorker(callback), pointA(pointA), pointB(pointB) {}
+
+  ~DistanceWorker() {
+    delete pointA;
+    delete pointB;
+  }
+
+  void Execute () {
+
+  }
+
+  void HandleOKCallback () {
+
+  }
+};
+
 NAN_METHOD(CalculateSync) {
   Local<Object> js_pointA = To<Object>(info[0]).ToLocalChecked();
   Local<Object> js_pointB = To<Object>(info[1]).ToLocalChecked();
