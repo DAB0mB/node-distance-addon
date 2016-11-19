@@ -6,5 +6,8 @@
   "repository": {
     "type": "git",
     "url": "https://DAB0mB@github.com/DAB0mB/node-distance-addon.git"
+  },
+  "scripts": {
+    "test": "node test"
   }
 }
