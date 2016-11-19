@@ -3,10 +3,14 @@
 #include <nan.h>
 #include <v8.h>
 
+using Nan::AsyncQueueWorker;
+using Nan::AsyncWorker;
+using Nan::Callback;
 using Nan::New;
 using Nan::To;
 using std::pow;
 using std::sqrt;
+using v8::Function;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -38,6 +42,7 @@ NAN_METHOD(CalculateSync) {
 NAN_METHOD(CalculateAsync) {
   Local<Object> js_pointA = To<Object>(info[0]).ToLocalChecked();
   Local<Object> js_pointB = To<Object>(info[1]).ToLocalChecked();
+  Callback* callback = new Callback(info[2].As<Function>());
 
   Point* pointA = new Point();
   pointA->x = To<double>(js_pointA->Get(New<String>("x").ToLocalChecked())).FromJust();
@@ -46,6 +51,8 @@ NAN_METHOD(CalculateAsync) {
   Point* pointB = new Point();
   pointB->x = To<double>(js_pointB->Get(New<String>("x").ToLocalChecked())).FromJust();
   pointB->y = To<double>(js_pointB->Get(New<String>("y").ToLocalChecked())).FromJust();
+
+  AsyncQueueWorker(new DistanceWorker(callback, pointA, pointB));
 }
 
 NAN_MODULE_INIT(Init) {
