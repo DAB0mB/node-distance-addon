@@ -1,8 +1,12 @@
+#include <cstdlib>
+#include <cmath>
 #include <nan.h>
 #include <v8.h>
 
 using Nan::New;
 using Nan::To;
+using std::pow;
+using std::sqrt;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -11,6 +15,10 @@ struct Point {
   double x;
   double y;
 };
+
+double CalculateDistance(Point* pointA, Point* pointB) {
+  return sqrt(pow(pointA->x - pointB->x, 2) + pow(pointA->y - pointB->y, 2));
+}
 
 NAN_METHOD(CalculateSync) {
   Local<Object> js_pointA = To<Object>(info[0]).ToLocalChecked();
