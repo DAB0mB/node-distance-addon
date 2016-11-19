@@ -12,5 +12,8 @@
     "pre-publish": "npm run build",
     "build": "node-gyp rebuild",
     "test": "npm run build && node test"
+  },
+  "dependencies": {
+    "nan": "^2.4.0"
   }
 }
