@@ -1,0 +1,19 @@
+{
+  "name": "distance",
+  "version": "0.0.0",
+  "description": "Efficient distance calculator for NodeJS",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://DAB0mB@github.com/DAB0mB/node-distance-addon.git"
+  },
+  "gypfile": true,
+  "scripts": {
+    "pre-publish": "npm run build",
+    "build": "node-gyp rebuild",
+    "test": "npm run build && node test"
+  },
+  "dependencies": {
+    "nan": "^2.4.0"
+  }
+}
