@@ -1,100 +1,155 @@
-In this step we will base our development process on the TDD methodology, so you will have a chance to look at the final target API that we desire. We will start by writing a test file:
+![v8-logo](https://cloud.githubusercontent.com/assets/7648874/20428176/d766fba8-ad6e-11e6-884f-badc847d5e24.png)
 
-{{{diffStep 2.1}}}
+The v8 JavaScript Engine is an open source JavaScript engine developed by The [Chromium Project](https://www.chromium.org/) for the [Google Chrome web browser](https://www.google.com/chrome/). It is intended to be used both in a browser and as a standalone high-performance engine that can be integrated into independent projects like [Couchbase](http://www.couchbase.com/), [MongoDB](https://www.mongodb.com/) and [Node.js](https://nodejs.org/). There lots of benchmarks out there but I will not bore you with diagrams, we all know that that this engine has proven itself to be worthy and it is being used world-widely and probably for a good reason.
 
-And the following NPM script should execute it:
+> "Ambition is a dream with a v8 engine" -Elvis Presley.
 
-{{{diffStep 2.2}}}
+If you're a JavaScript developer you must be familiar with the event-loop and the scoping system of v8, so it's a good thing that you understand the concept, but you never got to actually look at its source code and explicitly use it. A detailed documentation for v8's different API versions is available [here](https://v8docs.nodesource.com/). I assume that you don't bother reading any of my references that I provide along this tutorial (As a lazy blog-reader myself), I will post here that first thing you gonna see once you enter v8's documentation web-site:
 
-Like I said in the introduction, it's a simple module which can calculate the distance between 2 given points. `calculate.sync` can do it synchronously and `calculate.async` can do it asynchronously. Now that you got the idea we will start configuring our add-on.
+![v8-docs](https://cloud.githubusercontent.com/assets/7648874/20429800/ffeb3a4a-ad77-11e6-8fae-d892304169db.jpg)
 
-The first thing you'll need to do is to make sure that you have `node-gyp` installed:
+Throughout history v8 have changed a lot and it wore many forms. As a result, add-ons are not usable across different versions of the platform since each one supports a different API, which will break our process during run-time. In NodeJS team they came up with a very convenient solution called [Nan](https://github.com/nodejs/nan). Nan stands for "Native Abstractions for NodeJS" and is basically a header file filled with macro and utility goodness for making add-on development for NodeJS easier across all versions of v8, without inspecting `NODE_MODULE_VERSION` macro all the time. In this tutorial I'm gonna refer both of them as if they are bundled in a single framework.
 
-    $ sudo npm install -g node-gyp
+Eventually JavaScript is just a rehash of v8, everything you know so far is still valid but it uses a different idiom. To prevent some misconceptions, here are some important points regards JavaScript's equivalents which I think you should follow:
 
-`node-gyp` is also dependent on many other packages, so before you go any further please take a look at the official installation instructions in their [README.md file](https://github.com/nodejs/node-gyp).
+#### Scopes and Variables
 
-Assuming that you have installed everything properly, we will now need to create a `binding.gyp` file:
+In v8 a scope is referred as `Isolate` (`v8::Isolate`) and a variable is referred as `Local` (`v8::Local<T>`). A local is a pointer to an object. All v8 objects are accessed using locals, they are necessary because of the way the v8 garbage collector works. An isolate can be thought of as a container for any number of locals. When you've finished with your locals, instead of deleting each one individually you can simply delete their scope.
 
-{{{diffStep 2.3 files="binding.gyp"}}}
+##### JavaScript
 
-GYP stands for 'Generate Your Project' and was created by the Chromium team as a configuration file for building native projects. The configuration show above should be a good template for any future add-on you're looking to develop. Let's take a deeper look at it:
+```js
+let obj = {
+  foo: 'foo',
+  bar: 'bar',
+  baz: 'baz'
+};
 
-- `target_name` - Specifies the output dir of our add-on, in which case it should be `build/Release/distance`.
-- `sources` - Should include **all** the cpp files that are associated with you add-on.
-- `include_dirs` - Additional dirs that should be included when building the add-on. If you'll run the given script in the terminal you'll get the node-module path for Nan, a library which we're interested in during the build process.
+console.log(obj.foo);
+console.log(obj.bar);
+console.log(obj.baz);
+```
 
-More information about GYP configuration can be found [here](https://gyp.gsrc.io/docs/UserDocumentation.md).
+##### C++
 
-Be sure to also add the specified flag to the `package.json` which basically says 'Hey, I have a GYP file which should be taken into consideration as well':
+```cpp
+using Nan::New;
+using std::cendl;
+using std::cout;
+using v8::Local;
+using v8::Object;
+using v8::String;
 
-{{{diffStep 2.3 files="package.json"}}}
+Local<Object> obj = New<Object>();
 
-Now we will add the following NPM scripts so whenever we run `npm run build` our project will be built:
+obj->Set(New<String>("foo").ToLocalChecked(), New<String>("foo").ToLocalChecked());
+obj->Set(New<String>("bar").ToLocalChecked(), New<String>("bar").ToLocalChecked());
+obj->Set(New<String>("baz").ToLocalChecked(), New<String>("baz").ToLocalChecked());
 
-{{{diffStep 2.4}}}
+cout << obj->Get(New<String>("foo").ToLocalChecked()) << cendl;
+cout << obj->Get(New<String>("bar").ToLocalChecked()) << cendl;
+cout << obj->Get(New<String>("baz").ToLocalChecked()) << cendl;
+```
 
-The only thing left to do before jumping into implementation would be installing Nan:
+#### Asynchronous Callbacks
 
-    $ npm install nan --save
+Asynchronous logic can be implemented using the `AsyncWorker` (`Nan::AsyncWorker`) and invoked by `AsyncQueueWorker` (`Nan::AsyncQueueWorker`). Thanks to these two you can have much of the annoying asynchronous queuing and handling taken care of for you. It can even store arbitrary V8 objects for you and have them persist while the asynchronous work is in progress.
 
-The basis for build process is set. We will create the entry file for our add-on:
+##### JavaScript
 
-{{{diffStep 2.6}}}
+```js
+setImmediate(() => {
+  callback(null, 'result');
+});
+```
 
-Every add-on should start with these two macro calls. They are both compiled into a piece of code which will register our module with ease. The `NODE_MODULE` macro template accepts the name of the target as the first argument (That one we set as `target_name` in the GYP file, remember?) and the initialization method for our module. The `NAN_MODULE_INIT` generates a function with the given name. It accepts `target` as the first argument which is equivalent to NodeJS's `exports`. Now we will create our first method stub for a synchronous distance calculation:
+##### C++
 
-{{{diffStep 2.7}}}
+```cpp
+using Nan::AsyncQueueWorker;
+using Nan::AsyncWorker;
+using Nan::HandleScope;
+using Nan::New;
+using Nan::Null;
+using std::string;
+using v8::Local;
+using v8::String;
 
-We exported the `CalculateSync` by using the `NAN_EXPORT` macro, and we used `NAN_METHOD` to define a new node-valid function. It accepts `info` as the first argument and it is the same as JavaScript's `arguments` vector. We already know which arguments this function should accept, that's why I followed TDD methodology from the first place:
+class ResultWorker : AsyncWorker {
+ private:
+  string* result
 
-{{{diffStep 2.8}}}
+ public:
+  ResultWorker(Callback* callback) : AsyncWorker(callback) {}
 
-We use the `To()` function to convert the first argument into the desired type, and then we call the method `ToLocalChecked()`. This method is simply going to convert the result into v8's Local, unless the argument is undefined, in which case an error is going to be thrown. I like to prefix JS object with a `js_` so I know with what kind variable I'm dealing with. We should have two points containing `x` and `y` fields. Let's try to extract them out of the arguments vector and convert them into native C++ structures:
+  ~ResultDistance() {
+    delete result;
+  }
 
-{{{diffStep 2.9}}}
+  // Executed inside the worker-thread.
+  // It is not safe to access V8, or V8 data structures
+  // here, so everything we need for input and output
+  // should go on 'this'.
+  void Execute () {
+    result = new string("result");
+  }
 
-Then again we convert the `To()` function to convert the result into the desired data-type, only this time it's a primitive, so we use `FromJust()` instead of `ToLocalChecked()`. Note that v8 only uses double precision rather than a floating point. We can fetch properties from a given JS object with ease using the `Get()` method. Pay attention to use the `->` rather than a period because remember, a Local is actually a pointer! It is not the actual object.
+  // Executed when the async work is complete.
+  // This function will be run inside the main event loop
+  // so it is safe to use V8 again.
+  void HandleOKCallback () {
+    HandleScope scope;
 
-Now all is left to do is defining the return value. Keep in mind that the value should be returned through v8's current scope, not natively, so using the `return` keyword would be useless. The return value can actually be defined through the provided `info` argument, like this:
+    Local<Value> argv[] = {
+      Null(),
+      New<String>(result).ToLocalChecked()
+    };
 
-{{{diffStep "2.10"}}}
+    callback->Call(2, argv);
+  }
+};
 
-And of-course it requires us to add the core distance calculation method:
+AsyncQueueWorker(new ResultWorker(callback));
+```
 
-{{{diffStep 2.11}}}
+#### Modules Registration and Methods Definition
 
-This is it for the synchronous calculation. Now we will add an async version of it. We will start by creating a method with everything we learned so far until the point where we have to return the result:
+v8 and Nan provide us with some handy macros (`NODE_MODULE`, `NAN_MODULE_INIT`, `NAN_METHOD` and `NODE_SET_METHOD`) which will help us register a new NodeJS module and define its methods. This might be confusing for some, since we can't see the function's signature it would appear as if variables are just being magically created in the stack, but once the macros are being pre-processed they will just turn into ordinary functions. In the example below I commented the original signature so you can have more clew on what's going on.
 
-{{{diffStep 2.12}}}
+##### JavaScript
 
-Here's the different part. We don't wanna simply return the value, we want to make the calculations in parallel with the event loop, and once we're finished we will interact with it once again. In our model there are two threads. The first thread is the event loop thread, and the second thread will be a worker thread managed by Nan, the library supports asynchronous I/O in NodeJS. Let's start implementing and I will give some more explanations as we go further:
+```js
+exports.fn = (a, b) => a + b;
+```
 
-{{{diffStep 2.13}}}
+##### C++
 
-Here we fetch the third argument which is the callback. We wrap it with Nan's Callback, which will make sure it is not garbage collected once the scope is being deleted, we want it to keep living until it's not relevant. At the bottom of the method, instead of returning a value explicitly, we queue our `DistanceWorker` into the workers queue. On that note, let's implement the DistanceWorker:
+```cpp
+using Nan::To;
+using v8::Local;
+using v8::Object;
 
-{{{diffStep 2.14}}}
+// void Fn(FunctionCallbackInfo<Value>& info)
+NAN_METHOD(Fn) {
+  double a = To<double>(info[0]).FromJust();
+  double b = To<double>(info[1]).FromJust();
 
-`AsyncWorker` is an abstract class that you can subclass to have much of the annoying asynchronous queuing and handling taken care of for you. It can even store arbitrary v8 objects for you and have them persist while the asynchronous work is in progress. The `execute()` method is being executed inside the worker-thread. It is not safe to access V8, or V8 data structures there, so everything we need for input and output should go on 'this'. The `HandleOKCallback()` method is executed when the async work is complete. This function will be run inside the main event loop so it is safe to use v8 again. Let's implement the core distance calculation on the worker thread:
+  info.GetReturnValue().Set(a + b);
+}
 
-{{{diffStep 2.15}}}
+// void Init(Local<Object> target)
+NAN_MODULE_INIT(Init) {
+  NODE_SET_METHOD(target, Fn);
+}
 
-And handle a successful invocation once the calculation is finished:
+// First argument would be the entry file's name
+NODE_MODULE(addon, Init);
+```
 
-{{{diffStep 2.16}}}
+---
 
-Normally, when defining a NodeJS method (`NAN_METHOD` macro) a scope will be created for us automatically. In this function's context there is no scope exist, so we will have to create it using the `HandleScope` deceleration (The current scope is stored globally so even though we don't use it explicitly, v8 and Nan know what to do). We also created an arguments vector as the return value, following NodeJS's conventions, the first argument would be the error and the second argument would be the result.
+As you can see when dealing with v8 explicitly is a time consuming process which requires you to do lots of extra-work. With that said, keep in mind that only a small portion of your code is gonna interact with the engine since the core logic should be written using native C++ and other third-party libraries. You always need to find the right balance. Always make sure that your add-on doesn't require too much data to be passed otherwise the conversion process is gonna be hard and inefficient, and think twice before you choose this approach for the sake of simplicity. Overall the estimated optimization should be around 150% and up, depends on the task, first check your JavaScript code snippet, check for unnecessary logic and optimize it, and if you're really sure that it is fully optimized and you're still striving for more performance, *only then* move to C++.
 
-This is it! Finally we will transform the add-on into a nicer looking node-module:
+So far I went through the very basics which will help you create this bridge between the two platforms. The v8 lacks of detailed documentation, tutorials and examples. [Nan](https://github.com/nodejs/nan) however is a bit more documented IMHO, so when I approach the API documentation I would start from there, and if I didn't find anything useful I would look at [v8's latest API docs](https://v8docs.nodesource.com/). It's not a hard material to learn but it's different so it might be a bit challenging for some, but remember, practice practice practice.
 
-{{{diffStep 2.17}}}
-
-And now, let's run our small test to see that it works, using the following command:
-
-    $ npm run test
-
-If everything went well, you should have the following messages printed to the terminal:
-
-    sync calculation passed
-    async calculation passed
+Speaking of practice, let's move on to the next step where we gonna implement our first add-on for distance calculation between two points.
